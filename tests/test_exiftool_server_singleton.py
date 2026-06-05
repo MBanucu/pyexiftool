@@ -239,6 +239,12 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		self.assertEqual(real_survivor[1], expected_pid,
 			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
 
+		# Close pipes of timed-out processes that aren't the real survivor
+		for p, pid in survivors:
+			if (p, pid) != real_survivor:
+				p.stdout.close()
+				p.stderr.close()
+
 		surv_proc, surv_pid = real_survivor
 		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
 			s.sendall(json.dumps(
