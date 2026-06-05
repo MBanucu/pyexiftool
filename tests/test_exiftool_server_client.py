@@ -517,8 +517,24 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			stderr=subprocess.DEVNULL,
 		)
 		try:
-			# Wait for subprocess server to start
-			time.sleep(1.5)
+			# Wait for subprocess server to start (poll port file + ping)
+			deadline = time.monotonic() + 10.0
+			while time.monotonic() < deadline:
+				try:
+					with open(self.port_file) as f:
+						data = json.load(f)
+					port = data["port"]
+					with socket.create_connection(
+						("127.0.0.1", port), timeout=1.0) as s:
+						s.sendall(json.dumps(
+							{"id": 1, "method": "ping",
+							 "params": {}}).encode() + b"\n")
+						resp = s.makefile("r", encoding="utf-8").readline()
+					if resp and '"pong"' in resp:
+						break
+				except (OSError, KeyError, socket.timeout, ConnectionError):
+					pass
+				time.sleep(0.05)
 			self.assertIsNone(proc.poll(), "subprocess server died prematurely")
 
 			# Now start a server from the test process (lower PID)
@@ -532,10 +548,9 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				self.assertGreater(port, 0)
 
 				# The old subprocess should have been shut down by the takeover
-				time.sleep(2.0)
-				ret = proc.poll()
-				self.assertIsNotNone(ret,
-					"subprocess should have been terminated by takeover")
+				proc.wait(timeout=10.0)
+			except subprocess.TimeoutExpired:
+				self.fail("subprocess should have been terminated by takeover")
 			finally:
 				takeover.stop()
 		finally:
