@@ -238,6 +238,12 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		self.assertEqual(real_survivor[1], expected_pid,
 			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
 
+		# The lowest PID must never have exited prematurely
+		exited_pids = {r['pid'] for r in exited_results}
+		self.assertNotIn(expected_pid, exited_pids,
+			f"Lowest PID {expected_pid} exited prematurely "
+			f"({len(exited_results)} exited, {len(survivors)} timed out)")
+
 		# Close pipes of timed-out processes that aren't the real survivor
 		for p, pid in survivors:
 			if (p, pid) != real_survivor:
