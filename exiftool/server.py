@@ -48,6 +48,7 @@ import json
 import os
 import socket
 import struct
+import sys
 import tempfile
 import threading
 import time
@@ -70,6 +71,56 @@ from .exiftool import ExifTool
 from .helper import ExifToolHelper
 
 
+if os.name == 'nt':
+	import msvcrt as _msvcrt
+	_PLATFORM = 'windows'
+else:
+	import fcntl as _fcntl
+	_PLATFORM = 'posix'
+
+
+class _FileLock:
+	"""Cross-platform exclusive file lock.
+
+	Uses ``fcntl.flock`` on Unix and ``msvcrt.locking`` on Windows.
+	The lock file is never deleted — it acts as a persistent mutex.
+	"""
+
+	def __init__(self, path: str):
+		self._path = path
+		self._fd: int | None = None
+
+	def acquire(self, blocking: bool = True) -> bool:
+		"""Try to acquire the exclusive lock.
+
+		Returns True if the lock was acquired.  When *blocking* is False
+		and the lock is held by another process, returns False immediately.
+		"""
+		self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR, 0o644)
+		try:
+			if _PLATFORM == 'windows':
+				flags = _msvcrt.LK_LOCK if blocking else _msvcrt.LK_NBLCK
+				_msvcrt.locking(self._fd, flags, 1)
+				return True
+			else:
+				flags = _fcntl.LOCK_EX | (0 if blocking else _fcntl.LOCK_NB)
+				_fcntl.flock(self._fd, flags)
+				return True
+		except (BlockingIOError, OSError):
+			os.close(self._fd)
+			self._fd = None
+			return False
+
+	def release(self):
+		"""Release the lock."""
+		if self._fd is not None:
+			try:
+				os.close(self._fd)
+			except OSError:
+				pass
+			self._fd = None
+
+
 _PROTOCOL_VERSION = 1
 
 
@@ -78,7 +129,6 @@ def _iso_now() -> str:
 
 
 def _log(msg: str):
-	import sys
 	print(f"[{_iso_now()} exiftool-server] {msg}", file=sys.stderr, flush=True)
 
 
@@ -108,46 +158,84 @@ def _remove_port_file(port_file: str, pid: int):
 			pass
 
 
+def _ping_server(host: str, port: int, timeout: float = 5.0) -> bool:
+	"""Ping a server and return True if it responds."""
+	try:
+		s = socket.create_connection((host, port), timeout=timeout)
+		req = json.dumps({"id": 1, "method": "ping", "params": {}}) + "\n"
+		s.sendall(req.encode())
+		resp = s.makefile("r", encoding="utf-8").readline()
+		s.close()
+		return resp is not None and '"pong"' in resp
+	except (OSError, socket.timeout, ConnectionError):
+		return False
+
+
+def _send_shutdown(host: str, port: int, timeout: float = 5.0) -> bool:
+	"""Send shutdown command to a server."""
+	try:
+		s = socket.create_connection((host, port), timeout=timeout)
+		req = json.dumps({"id": 1, "method": "shutdown", "params": {}}) + "\n"
+		s.sendall(req.encode())
+		s.close()
+		return True
+	except (OSError, socket.timeout, ConnectionError):
+		return False
+
+
+def _lookup_port_file(port_file: str | None = None) -> dict | None:
+	"""Read the port file and return its contents, or None."""
+	if port_file is None:
+		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+	return _read_port_file(port_file)
+
+
+def _lock_path(port_file: str | None = None) -> str:
+	"""Return the lock file path derived from the port file path."""
+	if port_file is None:
+		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+	return port_file + ".lock"
+
+
 def find_server(port_file: str | None = None, timeout: float = 5.0) -> int | None:
 	"""Find a running ExifTool server by reading the port file.
 
 	Returns the port number if the server is reachable, or ``None``.
 	"""
-	if port_file is None:
-		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
-	try:
-		data = _read_port_file(port_file)
-		if data is None:
-			return None
-		port = data["port"]
-		# Quick ping
-		s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
-		req = json.dumps({"id": 1, "method": "ping", "params": {}}) + "\n"
-		s.sendall(req.encode())
-		resp = s.makefile("r", encoding="utf-8").readline()
-		s.close()
-		if resp and '"pong"' in resp:
-			return port
-	except (OSError, KeyError, socket.timeout, ConnectionError):
-		pass
+	data = _lookup_port_file(port_file)
+	if data is None:
+		return None
+	port = data.get("port")
+	if port is None:
+		return None
+	if _ping_server("127.0.0.1", port, timeout=timeout):
+		return port
 	return None
 
 
 def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
                  port_file: str | None = None,
                  executable: str | None = None,
-                 common_args: list[str] | None = None) -> int:
+                 common_args: list[str] | None = None,
+                 singleton: bool = False) -> int:
 	"""Spawn an ExifTool server as a background subprocess.
+
+	When *singleton* is True, first checks for an existing server and
+	returns its port if it is reachable, avoiding a duplicate spawn.
 
 	Returns the port the server is listening on.
 	Raises :py:class:`exiftool.exceptions.ExifToolServerError` if the server
 	does not start within *timeout* seconds.
 	"""
 	import subprocess
-	import sys
 
 	if port_file is None:
 		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+
+	if singleton:
+		existing = find_server(port_file, timeout=2.0)
+		if existing is not None:
+			return existing
 
 	# Remove stale port file
 	try:
@@ -161,6 +249,8 @@ def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
 	if common_args:
 		for ca in common_args:
 			args.extend(["--common-arg", ca])
+	if singleton:
+		args.append("--singleton")
 
 	proc = subprocess.Popen(
 		args,
@@ -174,12 +264,7 @@ def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
 			data = _read_port_file(port_file)
 			if data and "port" in data:
 				port = data["port"]
-				s = socket.create_connection(("127.0.0.1", port), timeout=1.0)
-				req = json.dumps({"id": 1, "method": "ping", "params": {}}) + "\n"
-				s.sendall(req.encode())
-				resp = s.makefile("r", encoding="utf-8").readline()
-				s.close()
-				if resp and '"pong"' in resp:
+				if _ping_server("127.0.0.1", port, timeout=1.0):
 					return port
 		except (OSError, socket.timeout, ConnectionError):
 			pass
@@ -208,6 +293,13 @@ class ExifToolServer:
 		executable: Path to the exiftool executable.
 		common_args: Additional arguments passed to every exiftool command.
 		port_file: Path to port discovery file (None = use default).
+		singleton: If True, enforce a single server per-lock-file via a
+			cross-platform exclusive file lock.  When a new server starts
+			and the lock is held, it pings the existing server.  If the
+			existing server is alive and its PID is lower, the new server
+			raises :py:class:`ExifToolServerError`.  If the new server's
+			PID is lower, it sends ``shutdown`` to the old server and
+			takes over.
 		no_exiftool: If True, skip starting the exiftool subprocess (testing only).
 	"""
 
@@ -217,12 +309,14 @@ class ExifToolServer:
 	             executable: str | None = None,
 	             common_args: list[str] | None = None,
 	             port_file: str | None = None,
+	             singleton: bool = False,
 	             no_exiftool: bool = False):
 
 		self._host = host
 		self._port = port
 		self._idle_timeout = idle_timeout
 		self._port_file = port_file
+		self._singleton = singleton
 		self._no_exiftool = no_exiftool
 
 		self._helper: ExifToolHelper | None = None
@@ -231,6 +325,7 @@ class ExifToolServer:
 		self._actual_port = 0
 		self._last_request_time = 0.0
 		self._lock = threading.Lock()
+		self._file_lock: _FileLock | None = None
 
 		if no_exiftool:
 			executable = None
@@ -247,6 +342,51 @@ class ExifToolServer:
 		"""Whether the server is currently running."""
 		return self._active
 
+	def _acquire_singleton_lock(self):
+		"""Try to acquire the singleton lock.
+
+		Returns the lock file path on success.
+		Raises :py:class:`ExifToolServerError` if the lock is held by a server
+		that should stay running.
+		"""
+		lock_path = _lock_path(self._port_file)
+		flock = _FileLock(lock_path)
+
+		if flock.acquire(blocking=False):
+			self._file_lock = flock
+			return
+
+		# Lock held — try PID election
+		data = _lookup_port_file(self._port_file)
+		if data is not None:
+			other_port = data.get("port")
+			other_pid = data.get("pid")
+			if other_port and other_pid is not None:
+				alive = _ping_server("127.0.0.1", other_port, timeout=2.0)
+				if alive:
+					my_pid = os.getpid()
+					if my_pid < other_pid:
+						_log(f"PID election: {my_pid} < {other_pid}, taking over")
+						_send_shutdown("127.0.0.1", other_port, timeout=2.0)
+						time.sleep(0.3)  # Wait for old server to release
+						if flock.acquire(blocking=False):
+							self._file_lock = flock
+							return
+						raise ExifToolServerError(
+							f"PID takeover failed: could not acquire lock after "
+							f"sending shutdown to PID {other_pid}")
+					raise ExifToolServerError(
+						f"Server already running (PID {other_pid}, port {other_port}). "
+						f"Set singleton=False or kill the existing server.")
+
+		# Server alive but port file missing, or dead — try again
+		time.sleep(0.2)
+		if flock.acquire(blocking=False):
+			self._file_lock = flock
+			return
+		raise ExifToolServerError(
+			f"Could not acquire singleton lock: {lock_path}")
+
 	def start(self) -> int:
 		"""Start the server.
 
@@ -254,11 +394,18 @@ class ExifToolServer:
 		and begins accepting connections in a background thread.  It blocks
 		until the socket is ready.
 
+		If *singleton* was set to True in the constructor, this method
+		first attempts to acquire a cross-platform file lock.  See the
+		class docstring for PID-election details.
+
 		Returns the port number the server is listening on.
 		"""
 		with self._lock:
 			if self._active:
 				return self._actual_port
+
+			if self._singleton:
+				self._acquire_singleton_lock()
 
 			# Start exiftool subprocess
 			common_args = list(self._common_args)
@@ -311,6 +458,9 @@ class ExifToolServer:
 				except Exception:
 					pass
 			self._remove_port_file()
+			if self._file_lock:
+				self._file_lock.release()
+				self._file_lock = None
 
 	def _write_port_file(self):
 		if self._port_file is None:
@@ -500,7 +650,6 @@ class ExifToolServer:
 def main():
 	"""CLI entry point for the server process."""
 	import argparse
-	import sys
 
 	port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
 
@@ -519,6 +668,8 @@ def main():
 	                    help="Common argument passed to every exiftool command")
 	parser.add_argument("--no-exiftool", action="store_true",
 	                    help="Skip starting exiftool (testing only)")
+	parser.add_argument("--singleton", action="store_true",
+	                    help="Enforce a single server per lock file")
 	parser.add_argument("--log", action="store_true",
 	                    help="Enable server logging to stderr")
 
@@ -534,6 +685,7 @@ def main():
 		executable=args.executable,
 		common_args=args.common_arg if args.common_arg else None,
 		port_file=args.port_file,
+		singleton=args.singleton,
 		no_exiftool=args.no_exiftool,
 	)
 
