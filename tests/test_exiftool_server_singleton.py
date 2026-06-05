@@ -162,7 +162,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		import subprocess
 		procs = []
 		for i in range(N):
-			delay = (N - 1 - i) * 0.1
+			delay = (N - 1 - i) * 0.01
 			sub_code = (
 				"import time; time.sleep(%s)\n"
 				"import sys, json, os\n"
