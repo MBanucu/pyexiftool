@@ -162,7 +162,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		import subprocess
 		procs = []
 		for i in range(N):
-			delay = (N - 1 - i) * 0.1
+			delay = (N - 1 - i) * 0.5
 			sub_code = (
 				"import time; time.sleep(%s)\n"
 				"import sys, json, os\n"
@@ -191,7 +191,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			)
 			procs.append(p)
 
-		deadline = time.monotonic() + 5.0
+		deadline = time.monotonic() + 10.0
 		survivors = []
 		exited_results = []
 
@@ -221,9 +221,10 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			resp = s.makefile("r", encoding="utf-8").readline()
 		self.assertIn("pong", resp or "")
 
-		failed = [r for r in exited_results if r['status'] == 'failed']
-		self.assertGreater(len(failed), 0,
-			f"No failures — expected at least one higher-PID contention loss "
+		# Every takeover shuts down the previous server (status "stopped")
+		taken_over = [r for r in exited_results if r['status'] == 'stopped']
+		self.assertGreater(len(taken_over), 0,
+			f"No takeovers — expected at least one "
 			f"({len(exited_results)} exited, {len(survivors)} running)")
 
 		running = [(p, pid) for p, pid in survivors if p.poll() is None]
@@ -232,13 +233,10 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			f"({len(survivors)} timed out)")
 		real_survivor = running[0]
 
-		# Clean up any extra timed-out processes
-		for p, pid in running:
-			if (p, pid) != real_survivor:
-				p.terminate()
-		for p, pid in running:
-			if (p, pid) != real_survivor:
-				p.wait()
+		# With cleanly-spaced delays the lowest PID always wins the cascade
+		expected_pid = min(p.pid for p in procs)
+		self.assertEqual(real_survivor[1], expected_pid,
+			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
 
 		surv_proc, surv_pid = real_survivor
 		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
