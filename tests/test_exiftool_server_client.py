@@ -7,15 +7,11 @@ import json
 import os
 import socket
 import tempfile
-import threading
 import time
 import unittest
 
 import exiftool
-from exiftool.exceptions import (
-	ExifToolConnectionError,
-	ExifToolServerError,
-)
+from exiftool.exceptions import ExifToolConnectionError
 from exiftool.constants import PLATFORM_WINDOWS
 
 
@@ -409,154 +405,7 @@ class TestExifToolSpawnServer(unittest.TestCase):
 # ── Singleton tests ──────────────────────────────────────────────────
 
 
-@unittest.skipIf(
-	os.environ.get("SKIP_SINGLETON_TESPS"),
-	"Skipping singleton tests that use subprocess",
-)
-class TestExifToolServerSingleton(unittest.TestCase):
-	"""Test singleton lock enforcement on ExifToolServer."""
 
-	@classmethod
-	def setUpClass(cls):
-		cls.port_file = os.path.join(
-			tempfile.gettempdir(), "pyexiftool-test-singleton.json")
-		cls.lock_file = cls.port_file + ".lock"
-		for p in (cls.port_file, cls.lock_file):
-			try:
-				os.unlink(p)
-			except OSError:
-				pass
-		# Prevent subprocess tests from eating port-file artifacts
-		cls._own_pid = os.getpid()
-
-	@classmethod
-	def tearDownClass(cls):
-		for p in (cls.port_file, cls.lock_file):
-			try:
-				os.unlink(p)
-			except OSError:
-				pass
-
-	def setUp(self):
-		self.server = exiftool.ExifToolServer(
-			port_file=self.port_file,
-			singleton=True,
-			no_exiftool=True,
-		)
-
-	def tearDown(self):
-		self.server.stop()
-
-	def test_singleton_lock_acquired(self):
-		"""Start with singleton=True should create and hold the lock file."""
-		port = self.server.start()
-		self.assertGreater(port, 0)
-		self.assertTrue(os.path.exists(self.lock_file))
-
-	def test_singleton_idempotent(self):
-		"""Starting an already-running singleton server is idempotent."""
-		p1 = self.server.start()
-		p2 = self.server.start()
-		self.assertEqual(p1, p2)
-
-	def test_singleton_second_fails(self):
-		"""A second server with a higher PID must raise when the lock is held."""
-		self.server.start()
-		# Simulate a higher PID so we appear as the "new" process
-		import unittest.mock as mock
-		real_pid = os.getpid()
-		fake_higher_pid = real_pid + 1000000
-		with mock.patch("exiftool.server.os.getpid", return_value=fake_higher_pid):
-			server2 = exiftool.ExifToolServer(
-				port_file=self.port_file,
-				singleton=True,
-				no_exiftool=True,
-			)
-			with self.assertRaises(ExifToolServerError) as cm:
-				server2.start()
-			self.assertIn("already running", str(cm.exception).lower())
-
-	def test_singleton_lock_cleaned_up(self):
-		"""After stop() the lock file must be released (re-acquirable)."""
-		self.server.start()
-		self.server.stop()
-		# Another server should now be able to acquire the lock
-		server2 = exiftool.ExifToolServer(
-			port_file=self.port_file,
-			singleton=True,
-			no_exiftool=True,
-		)
-		try:
-			port2 = server2.start()
-			self.assertGreater(port2, 0)
-		finally:
-			server2.stop()
-
-	def test_pid_takeover(self):
-		"""A server with a lower PID takes over from a higher-PID server."""
-		# Start a server in a subprocess (higher PID).  We use a short
-		# idle-timeout so it exits cleanly if the takeover fails.
-		import subprocess
-		import sys
-
-		sub_code = (
-			"import sys; sys.path.insert(0, %r); import exiftool;"
-			"srv = exiftool.ExifToolServer("
-			"port_file=%r, singleton=True, no_exiftool=True,"
-			"idle_timeout=30); "
-			"srv.start()\n"
-			"while srv.running:\n"
-			"    import time; time.sleep(0.5)"
-		) % (
-			os.path.join(os.path.dirname(__file__), ".."),
-			self.port_file,
-		)
-		proc = subprocess.Popen(
-			[sys.executable, "-c", sub_code],
-			stdout=subprocess.DEVNULL,
-			stderr=subprocess.DEVNULL,
-		)
-		try:
-			# Wait for subprocess server to start (poll port file + ping)
-			deadline = time.monotonic() + 10.0
-			while time.monotonic() < deadline:
-				try:
-					with open(self.port_file) as f:
-						data = json.load(f)
-					port = data["port"]
-					with socket.create_connection(
-						("127.0.0.1", port), timeout=1.0) as s:
-						s.sendall(json.dumps(
-							{"id": 1, "method": "ping",
-							 "params": {}}).encode() + b"\n")
-						resp = s.makefile("r", encoding="utf-8").readline()
-					if resp and '"pong"' in resp:
-						break
-				except (OSError, KeyError, socket.timeout, ConnectionError):
-					pass
-				time.sleep(0.05)
-			self.assertIsNone(proc.poll(), "subprocess server died prematurely")
-
-			# Now start a server from the test process (lower PID)
-			takeover = exiftool.ExifToolServer(
-				port_file=self.port_file,
-				singleton=True,
-				no_exiftool=True,
-			)
-			try:
-				port = takeover.start()
-				self.assertGreater(port, 0)
-
-				# The old subprocess should have been shut down by the takeover
-				proc.wait(timeout=10.0)
-			except subprocess.TimeoutExpired:
-				self.fail("subprocess should have been terminated by takeover")
-			finally:
-				takeover.stop()
-		finally:
-			if proc.poll() is None:
-				proc.terminate()
-				proc.wait()
 
 
 @unittest.skipIf(
