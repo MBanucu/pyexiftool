@@ -190,7 +190,6 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				stdout=subprocess.PIPE, stderr=subprocess.PIPE,
 			)
 			procs.append(p)
-			time.sleep(0.1)
 
 		deadline = time.monotonic() + 10.0
 		survivors = []
