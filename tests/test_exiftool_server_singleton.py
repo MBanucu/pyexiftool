@@ -198,7 +198,6 @@ class TestExifToolServerSingleton(unittest.TestCase):
 
 		for p in procs:
 			if p is expected_winner:
-				survivors.append((p, p.pid))
 				continue
 			remaining = deadline - time.monotonic()
 			if remaining <= 0:
@@ -211,9 +210,13 @@ class TestExifToolServerSingleton(unittest.TestCase):
 						print(f"  {line}")
 			except subprocess.TimeoutExpired:
 				survivors.append((p, p.pid))
+				p.stdout.close()
+				p.stderr.close()
 
-		self.assertGreater(len(survivors), 0,
-			f"Expected at least 1 survivor, got {len(survivors)}")
+		self.assertEqual(len(survivors), 0,
+			f"Expected no unexpected survivors, got {len(survivors)}")
+		self.assertIsNone(expected_winner.poll(),
+			"Expected lowest-PID process to still be running")
 
 		with open(self.port_file) as f:
 			port_data = json.load(f)
@@ -229,38 +232,25 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		taken_over = [r for r in exited_results if r['status'] == 'stopped']
 		self.assertGreater(len(taken_over), 0,
 			f"No takeovers — expected at least one "
-			f"({len(exited_results)} exited, {len(survivors)} running)")
-
-		running = [(p, pid) for p, pid in survivors if p.poll() is None]
-		self.assertEqual(len(running), 1,
-			f"Expected exactly 1 running server, got {len(running)} "
-			f"({len(survivors)} timed out)")
-		real_survivor = running[0]
-
-		# Retry loop guarantees the lowest PID wins every election
-		self.assertEqual(real_survivor[1], expected_winner.pid,
-			f"Expected PID {expected_winner.pid} to survive, got {real_survivor[1]}")
+			f"({len(exited_results)} exited)")
 
 		exited_pids = {r['pid'] for r in exited_results}
 		self.assertNotIn(expected_winner.pid, exited_pids,
 			f"Lowest PID {expected_winner.pid} exited prematurely "
-			f"({len(exited_results)} exited, {len(survivors)} timed out)")
+			f"({len(exited_results)} exited)")
 
-		# Close pipes of timed-out processes that aren't the real survivor
-		for p, pid in survivors:
-			if (p, pid) != real_survivor:
-				p.stdout.close()
-				p.stderr.close()
-
-		surv_proc, surv_pid = real_survivor
+		surv_proc = expected_winner
 		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
 			s.sendall(json.dumps(
 				{"id": 1, "method": "shutdown",
 				 "params": {}}).encode() + b"\n")
 
-		out, _ = surv_proc.communicate(timeout=10.0)
+		out, err = surv_proc.communicate(timeout=10.0)
 		surv_result = json.loads(out.decode())
 		self.assertEqual(surv_result['status'], 'stopped')
+		for line in err.decode().splitlines():
+			if "PID election" in line:
+				print(f"  {line}")
 
 
 if __name__ == '__main__':
