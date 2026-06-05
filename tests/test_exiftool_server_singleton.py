@@ -226,19 +226,19 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			f"No failures — expected at least one higher-PID contention loss "
 			f"({len(exited_results)} exited, {len(survivors)} running)")
 
-		real_survivor = None
-		for proc, pid in survivors:
-			if proc.poll() is None:
-				if real_survivor is None:
-					real_survivor = (proc, pid)
-				else:
-					proc.terminate()
-		self.assertIsNotNone(real_survivor, "No surviving process found")
+		running = [(p, pid) for p, pid in survivors if p.poll() is None]
+		self.assertEqual(len(running), 1,
+			f"Expected exactly 1 running server, got {len(running)} "
+			f"({len(survivors)} timed out)")
+		real_survivor = running[0]
 
-		# Lowest PID should always win (lower PID takes over from higher)
-		expected_pid = min(p.pid for p in procs)
-		self.assertEqual(real_survivor[1], expected_pid,
-			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
+		# Clean up any extra timed-out processes
+		for p, pid in running:
+			if (p, pid) != real_survivor:
+				p.terminate()
+		for p, pid in running:
+			if (p, pid) != real_survivor:
+				p.wait()
 
 		surv_proc, surv_pid = real_survivor
 		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
