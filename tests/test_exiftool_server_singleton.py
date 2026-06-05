@@ -159,37 +159,40 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		N = 10
 		root = os.path.join(os.path.dirname(__file__), "..")
 
-		sub_code = (
-			"import sys, json, os\n"
-			"sys.path.insert(0, %r)\n"
-			"import exiftool\n"
-			"port_file = %r\n"
-			"result = {'pid': os.getpid(), 'status': 'unknown'}\n"
-			"try:\n"
-			"    srv = exiftool.ExifToolServer(\n"
-			"        port_file=port_file, singleton=True,\n"
-			"        no_exiftool=True, idle_timeout=30)\n"
-			"    port = srv.start()\n"
-			"    result['status'] = 'running'\n"
-			"    result['port'] = port\n"
-			"    while srv.running:\n"
-			"        import time; time.sleep(0.5)\n"
-			"    result['status'] = 'stopped'\n"
-			"except Exception as e:\n"
-			"    result['status'] = 'failed'\n"
-			"    result['error'] = type(e).__name__\n"
-			"print(json.dumps(result))\n"
-		) % (root, self.port_file)
-
 		import subprocess
 		procs = []
 		for i in range(N):
+			# Staggered delays: process 0 (lowest PID) sleeps 0.9s,
+			# process 9 (highest PID) sleeps 0.0s so it starts first and
+			# acquires the lock.  Lower-PID processes wake later and take over.
+			delay = (N - 1 - i) * 0.1
+			sub_code = (
+				"import time; time.sleep(%s)\n"
+				"import sys, json, os\n"
+				"sys.path.insert(0, %r)\n"
+				"import exiftool\n"
+				"port_file = %r\n"
+				"result = {'pid': os.getpid(), 'status': 'unknown'}\n"
+				"try:\n"
+				"    srv = exiftool.ExifToolServer(\n"
+				"        port_file=port_file, singleton=True,\n"
+				"        no_exiftool=True, idle_timeout=30)\n"
+				"    port = srv.start()\n"
+				"    result['status'] = 'running'\n"
+				"    result['port'] = port\n"
+				"    while srv.running:\n"
+				"        import time; time.sleep(0.5)\n"
+				"    result['status'] = 'stopped'\n"
+				"except Exception as e:\n"
+				"    result['status'] = 'failed'\n"
+				"    result['error'] = type(e).__name__\n"
+				"print(json.dumps(result))\n"
+			) % (delay, root, self.port_file)
 			p = subprocess.Popen(
 				[sys.executable, "-c", sub_code],
 				stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
 			)
 			procs.append(p)
-			time.sleep(0.01)
 
 		deadline = time.monotonic() + 5.0
 		survivors = []
