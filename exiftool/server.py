@@ -257,6 +257,9 @@ def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
 		stdout=subprocess.DEVNULL,
 		stderr=subprocess.DEVNULL,
 	)
+	# Defer ResourceWarning — the server is intentionally left running.
+	# _child_created=False tells Popen.__del__ not to warn.
+	proc._child_created = False
 
 	deadline = time.monotonic() + timeout
 	while time.monotonic() < deadline:
