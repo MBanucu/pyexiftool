@@ -400,6 +400,16 @@ class TestExifToolSpawnServer(unittest.TestCase):
 		s.sendall(req.encode())
 		resp = s.makefile("r", encoding="utf-8").readline()
 		s.close()
+		# Wait for the background subprocess to stop
+		deadline = time.monotonic() + 5.0
+		while time.monotonic() < deadline:
+			try:
+				with socket.create_connection(
+					("127.0.0.1", port), timeout=0.5) as _:
+					pass
+			except (OSError, socket.timeout, ConnectionError):
+				break
+			time.sleep(0.1)
 
 
 # ── Singleton tests ──────────────────────────────────────────────────
@@ -455,6 +465,15 @@ class TestSpawnServerSingleton(unittest.TestCase):
 				req = json.dumps({"id": 1, "method": "shutdown", "params": {}}) + "\n"
 				s.sendall(req.encode())
 				s.close()
+				deadline = time.monotonic() + 5.0
+				while time.monotonic() < deadline:
+					try:
+						with socket.create_connection(
+							("127.0.0.1", port1), timeout=0.5) as _:
+							pass
+					except (OSError, socket.timeout, ConnectionError):
+						break
+					time.sleep(0.1)
 			except OSError:
 				pass
 
