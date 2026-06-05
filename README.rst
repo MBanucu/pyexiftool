@@ -230,6 +230,61 @@ The base ``ExifTool`` class contains the core functionality exposed in the most 
 .. DESIGN_CLASS_END
 
 
+Server / Client Mode
+--------------------
+
+PyExifTool provides a TCP server mode that allows multiple processes or
+threads to share a single ``exiftool`` subprocess.  This avoids the
+overhead of starting a new subprocess per client and is essential when
+multiple processes must not concurrently write to the same filesystem.
+
+The server listens on a TCP socket and accepts JSON-RPC-like requests.
+The client provides the same API as :py:class:`exiftool.ExifToolHelper`,
+making it a drop-in replacement.
+
+* ``exiftool.ExifToolServer`` wraps an ``ExifToolHelper`` instance and
+  exposes it over TCP.  It auto-shuts down after an idle timeout.
+
+* ``exiftool.ExifToolClient`` connects to a running server and proxies
+  all calls to it.
+
+Example::
+
+    import exiftool
+
+    # Start a server
+    server = exiftool.ExifToolServer()
+    port = server.start()
+
+    # Connect a client from another process (or the same one)
+    with exiftool.ExifToolClient(port=port) as client:
+        metadata = client.get_metadata("file.jpg")
+
+    # Servers auto-shutdown after 60s idle; stop explicitly:
+    server.stop()
+
+Auto-discovery via a well-known port file (``pyexiftool-server.json``
+in the temp directory) is also supported::
+
+    # Process A: start server (uses default port file)
+    server = exiftool.ExifToolServer()
+    server.start()
+
+    # Process B: auto-discover
+    client = exiftool.ExifToolClient()
+    print(client.execute("-ver"))
+
+    # Or spawn a server as a background subprocess:
+    port = exiftool.spawn_server()
+    print(f"Server on port {port}")
+
+Discovered server port from a running server:
+
+    port = exiftool.find_server()
+    if port:
+        print(f"Found server on port {port}")
+
+
 Brief History
 =============
 

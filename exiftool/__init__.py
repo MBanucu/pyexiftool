@@ -61,7 +61,7 @@ Example usage::
 
 # version number using Semantic Versioning 2.0.0 https://semver.org/
 # may not be PEP-440 compliant https://www.python.org/dev/peps/pep-0440/#semantic-versioning
-__version__ = "0.5.6"
+__version__ = "0.6.0"
 
 
 # while we COULD import all the exceptions into the base library namespace,
@@ -73,6 +73,10 @@ from . import exceptions
 from .exiftool import ExifTool
 from .helper import ExifToolHelper
 from .experimental import ExifToolAlpha
+
+# server / client
+from .server import ExifToolServer, find_server, spawn_server
+from .client import ExifToolClient
 
 # an old feature of the original class that exposed this variable at the library level
 # TODO may remove and deprecate at a later time

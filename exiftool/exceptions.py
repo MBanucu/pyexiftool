@@ -156,3 +156,33 @@ class ExifToolTagNameError(ExifToolException):
 	"""
 	def __init__(self, bad_tag):
 		super().__init__(f"Invalid Tag Name found: \"{bad_tag}\"")
+
+
+class ExifToolServerError(ExifToolException):
+	"""
+	Generic base class for errors related to :py:class:`exiftool.server.ExifToolServer`
+	"""
+
+
+class ExifToolServerNotRunning(ExifToolServerError):
+	"""
+	The ExifTool server is not running
+	"""
+
+
+class ExifToolServerTimeout(ExifToolServerError):
+	"""
+	The ExifTool server did not respond within the timeout
+	"""
+
+
+class ExifToolClientError(ExifToolException):
+	"""
+	Generic base class for errors related to :py:class:`exiftool.client.ExifToolClient`
+	"""
+
+
+class ExifToolConnectionError(ExifToolClientError):
+	"""
+	Could not connect to the ExifTool server
+	"""

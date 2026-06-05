@@ -105,3 +105,19 @@ EXIFTOOL_MINIMUM_VERSION: str = "12.15"
 * 8.40 / 8.60 (production): implemented the -stay_open flag
 * 12.10 / 12.15 (production): implemented exit status on -echo4
 """
+
+
+DEFAULT_SERVER_HOST: str = "127.0.0.1"
+"""Default host for :py:class:`exiftool.server.ExifToolServer` to listen on"""
+
+DEFAULT_SERVER_PORT: int = 0
+"""Default port (0 = random available port) for :py:class:`exiftool.server.ExifToolServer`"""
+
+DEFAULT_SERVER_TIMEOUT: float = 10.0
+"""Default timeout in seconds for server startup and client requests"""
+
+DEFAULT_SERVER_IDLE_TIMEOUT: float = 60.0
+"""Default idle timeout in seconds before server auto-shuts down"""
+
+DEFAULT_SERVER_PORT_FILE: str = "pyexiftool-server.json"
+"""Default filename (in temp directory) for server port discovery"""
