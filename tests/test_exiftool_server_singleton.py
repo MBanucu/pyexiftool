@@ -235,6 +235,11 @@ class TestExifToolServerSingleton(unittest.TestCase):
 					proc.terminate()
 		self.assertIsNotNone(real_survivor, "No surviving process found")
 
+		# Lowest PID should always win (lower PID takes over from higher)
+		expected_pid = min(p.pid for p in procs)
+		self.assertEqual(real_survivor[1], expected_pid,
+			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
+
 		surv_proc, surv_pid = real_survivor
 		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
 			s.sendall(json.dumps(
