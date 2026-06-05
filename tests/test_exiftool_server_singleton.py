@@ -253,8 +253,9 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			if "PID election" in line:
 				election_lines.append(line)
 
-		for line in sorted(election_lines):
-			print(f"  {line}")
+		if os.environ.get("SHOW_ELECTION_LOGS"):
+			for line in sorted(election_lines):
+				print(f"  {line}")
 
 
 if __name__ == '__main__':
