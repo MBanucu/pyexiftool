@@ -162,7 +162,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		import subprocess
 		procs = []
 		for i in range(N):
-			delay = (N - 1 - i) * 0.5
+			delay = (N - 1 - i) * 0.1
 			sub_code = (
 				"import time; time.sleep(%s)\n"
 				"import sys, json, os\n"
@@ -190,6 +190,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				stdout=subprocess.PIPE, stderr=subprocess.PIPE,
 			)
 			procs.append(p)
+			time.sleep(0.1)
 
 		deadline = time.monotonic() + 10.0
 		survivors = []
@@ -221,7 +222,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			resp = s.makefile("r", encoding="utf-8").readline()
 		self.assertIn("pong", resp or "")
 
-		# Every takeover shuts down the previous server (status "stopped")
+		# At least one server should have been taken over (status "stopped")
 		taken_over = [r for r in exited_results if r['status'] == 'stopped']
 		self.assertGreater(len(taken_over), 0,
 			f"No takeovers — expected at least one "
@@ -233,7 +234,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			f"({len(survivors)} timed out)")
 		real_survivor = running[0]
 
-		# With cleanly-spaced delays the lowest PID always wins the cascade
+		# Retry loop guarantees the lowest PID wins every election
 		expected_pid = min(p.pid for p in procs)
 		self.assertEqual(real_survivor[1], expected_pid,
 			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
