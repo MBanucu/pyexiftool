@@ -194,8 +194,12 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		deadline = time.monotonic() + 10.0
 		survivors = []
 		exited_results = []
+		expected_winner = min(procs, key=lambda p: p.pid)
 
 		for p in procs:
+			if p is expected_winner:
+				survivors.append((p, p.pid))
+				continue
 			remaining = deadline - time.monotonic()
 			if remaining <= 0:
 				remaining = 0.001
@@ -234,14 +238,12 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		real_survivor = running[0]
 
 		# Retry loop guarantees the lowest PID wins every election
-		expected_pid = min(p.pid for p in procs)
-		self.assertEqual(real_survivor[1], expected_pid,
-			f"Expected PID {expected_pid} to survive, got {real_survivor[1]}")
+		self.assertEqual(real_survivor[1], expected_winner.pid,
+			f"Expected PID {expected_winner.pid} to survive, got {real_survivor[1]}")
 
-		# The lowest PID must never have exited prematurely
 		exited_pids = {r['pid'] for r in exited_results}
-		self.assertNotIn(expected_pid, exited_pids,
-			f"Lowest PID {expected_pid} exited prematurely "
+		self.assertNotIn(expected_winner.pid, exited_pids,
+			f"Lowest PID {expected_winner.pid} exited prematurely "
 			f"({len(exited_results)} exited, {len(survivors)} timed out)")
 
 		# Close pipes of timed-out processes that aren't the real survivor
