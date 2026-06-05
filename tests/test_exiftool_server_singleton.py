@@ -162,9 +162,6 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		import subprocess
 		procs = []
 		for i in range(N):
-			# Staggered delays: process 0 (lowest PID) sleeps 0.9s,
-			# process 9 (highest PID) sleeps 0.0s so it starts first and
-			# acquires the lock.  Lower-PID processes wake later and take over.
 			delay = (N - 1 - i) * 0.1
 			sub_code = (
 				"import time; time.sleep(%s)\n"
@@ -190,7 +187,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			) % (delay, root, self.port_file)
 			p = subprocess.Popen(
 				[sys.executable, "-c", sub_code],
-				stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+				stdout=subprocess.PIPE, stderr=subprocess.PIPE,
 			)
 			procs.append(p)
 
@@ -203,8 +200,11 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			if remaining <= 0:
 				remaining = 0.001
 			try:
-				out, _ = p.communicate(timeout=remaining)
+				out, err = p.communicate(timeout=remaining)
 				exited_results.append(json.loads(out.decode()))
+				for line in err.decode().splitlines():
+					if "PID election" in line:
+						print(f"  {line}")
 			except subprocess.TimeoutExpired:
 				survivors.append((p, p.pid))
 
