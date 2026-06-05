@@ -194,6 +194,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		deadline = time.monotonic() + 10.0
 		survivors = []
 		exited_results = []
+		election_lines: list[str] = []
 		expected_winner = min(procs, key=lambda p: p.pid)
 
 		for p in procs:
@@ -207,7 +208,7 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				exited_results.append(json.loads(out.decode()))
 				for line in err.decode().splitlines():
 					if "PID election" in line:
-						print(f"  {line}")
+						election_lines.append(line)
 			except subprocess.TimeoutExpired:
 				survivors.append((p, p.pid))
 				p.stdout.close()
@@ -250,7 +251,10 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		self.assertEqual(surv_result['status'], 'stopped')
 		for line in err.decode().splitlines():
 			if "PID election" in line:
-				print(f"  {line}")
+				election_lines.append(line)
+
+		for line in sorted(election_lines):
+			print(f"  {line}")
 
 
 if __name__ == '__main__':
