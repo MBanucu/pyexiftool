@@ -373,12 +373,11 @@ class ExifToolServer:
 						if my_pid < other_pid:
 							_log(f"PID election: {my_pid} < {other_pid}, taking over")
 							_send_shutdown("127.0.0.1", other_port, timeout=2.0)
-							time.sleep(0.3)
-							continue
-						_log(f"PID election: {my_pid} > {other_pid}, not taking over")
-						raise ExifToolServerError(
-							f"Server already running (PID {other_pid}, port {other_port}). "
-							f"Set singleton=False or kill the existing server.")
+						else:
+							_log(f"PID election: {my_pid} > {other_pid}, not taking over")
+							raise ExifToolServerError(
+								f"Server already running (PID {other_pid}, port {other_port}). "
+								f"Set singleton=False or kill the existing server.")
 
 			# Server dead or port file missing — brief wait then retry
 			time.sleep(0.2)
