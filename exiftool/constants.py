@@ -26,6 +26,7 @@ This submodule defines constants which are used by other modules in the package
 
 """
 
+import os
 import sys
 
 
@@ -120,4 +121,19 @@ DEFAULT_SERVER_IDLE_TIMEOUT: float = 60.0
 """Default idle timeout in seconds before server auto-shuts down"""
 
 DEFAULT_SERVER_PORT_FILE: str = "pyexiftool-server.json"
-"""Default filename (in temp directory) for server port discovery"""
+"""Default basename for the server port discovery file"""
+
+DEFAULT_SERVER_PORT_FILE_DIR: str = os.path.join(
+	os.path.expanduser("~"),
+	".cache", "pyexiftool",
+)
+"""Default directory for server port discovery and lock files.
+
+Uses ``~/.cache/pyexiftool`` (``$HOME/.cache/pyexiftool``) so that
+all processes for the same user share the same port file regardless
+of :py:func:`tempfile.gettempdir()` differences.
+
+On Windows this produces ``C:\\Users\\<user>\\.cache\\pyexiftool``
+which is functional but unconventional — users may override via the
+*port_file* parameter or the ``PYEXIFTOOL_PORT_FILE`` env var.
+"""

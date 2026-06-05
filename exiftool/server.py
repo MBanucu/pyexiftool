@@ -49,7 +49,6 @@ import os
 import socket
 import struct
 import sys
-import tempfile
 import threading
 import time
 from datetime import datetime, timezone
@@ -57,9 +56,10 @@ from datetime import datetime, timezone
 from .constants import (
 	DEFAULT_SERVER_HOST,
 	DEFAULT_SERVER_PORT,
+	DEFAULT_SERVER_PORT_FILE,
+	DEFAULT_SERVER_PORT_FILE_DIR,
 	DEFAULT_SERVER_TIMEOUT,
 	DEFAULT_SERVER_IDLE_TIMEOUT,
-	DEFAULT_SERVER_PORT_FILE,
 )
 from .exceptions import (
 	ExifToolServerError,
@@ -186,14 +186,14 @@ def _send_shutdown(host: str, port: int, timeout: float = 5.0) -> bool:
 def _lookup_port_file(port_file: str | None = None) -> dict | None:
 	"""Read the port file and return its contents, or None."""
 	if port_file is None:
-		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+		port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
 	return _read_port_file(port_file)
 
 
 def _lock_path(port_file: str | None = None) -> str:
 	"""Return the lock file path derived from the port file path."""
 	if port_file is None:
-		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+		port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
 	return port_file + ".lock"
 
 
@@ -230,7 +230,7 @@ def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
 	import subprocess
 
 	if port_file is None:
-		port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+		port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
 
 	if singleton:
 		existing = find_server(port_file, timeout=2.0)
@@ -651,7 +651,7 @@ def main():
 	"""CLI entry point for the server process."""
 	import argparse
 
-	port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+	port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
 
 	parser = argparse.ArgumentParser(description="ExifTool server daemon")
 	parser.add_argument("--host", default=DEFAULT_SERVER_HOST,

@@ -44,14 +44,14 @@ Usage::
 import json
 import os
 import socket
-import tempfile
 from pathlib import Path
 from typing import Any, Optional, Union
 
 from .constants import (
 	DEFAULT_SERVER_HOST,
-	DEFAULT_SERVER_TIMEOUT,
 	DEFAULT_SERVER_PORT_FILE,
+	DEFAULT_SERVER_PORT_FILE_DIR,
+	DEFAULT_SERVER_TIMEOUT,
 )
 from .exceptions import (
 	ExifToolConnectionError,
@@ -101,7 +101,7 @@ def _find_server(port_file: str | None = None,
     Raises ``ExifToolConnectionError`` if no server is found.
     """
     if port_file is None:
-        port_file = os.path.join(tempfile.gettempdir(), DEFAULT_SERVER_PORT_FILE)
+        port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
     try:
         with open(port_file) as f:
             data = json.load(f)
