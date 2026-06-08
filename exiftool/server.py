@@ -297,12 +297,10 @@ class ExifToolServer:
 		common_args: Additional arguments passed to every exiftool command.
 		port_file: Path to port discovery file (None = use default).
 		singleton: If True, enforce a single server per-lock-file via a
-			cross-platform exclusive file lock.  When a new server starts
-			and the lock is held, it pings the existing server.  If the
-			existing server is alive and its PID is lower, the new server
-			raises :py:class:`ExifToolServerError`.  If the new server's
-			PID is lower, it sends ``shutdown`` to the old server and
-			takes over.
+			cross-platform exclusive file lock (first-come, first-served).
+			When a new server starts and the lock is held by an alive
+			server, :py:class:`ExifToolServerError` is raised.  If the
+			previous server has exited, the lock is taken over.
 		no_exiftool: If True, skip starting the exiftool subprocess (testing only).
 	"""
 
@@ -346,41 +344,36 @@ class ExifToolServer:
 		return self._active
 
 	def _acquire_singleton_lock(self):
-		"""Try to acquire the singleton lock.
+		"""Try to acquire the singleton lock (first-come, first-served).
 
-		Uses a retry loop so that when multiple processes attempt to
-		take over from the same server, the lowest PID eventually wins.
+		Attempts a non-blocking exclusive file lock.  If the lock is already
+		held by another server, reads the port file and raises an error with
+		the address of the running server.
 
-		Raises :py:class:`ExifToolServerError` if the lock is held by a
-		server with a lower PID, or if the retry limit is exceeded.
+		Raises :py:class:`ExifToolServerError` if another server is running.
 		"""
 		lock_path = _lock_path(self._port_file)
 		flock = _FileLock(lock_path)
 
-		for _ in range(100):  # safety bound
-			if flock.acquire(blocking=False):
+		if flock.acquire(blocking=False):
+			self._file_lock = flock
+			return
+
+		data = _lookup_port_file(self._port_file)
+		if data is not None:
+			other_port = data.get("port")
+			other_pid = data.get("pid")
+			if other_port and other_pid is not None:
+				alive = _ping_server("127.0.0.1", other_port, timeout=2.0)
+				if alive:
+					raise ExifToolServerError(
+						f"Server already running on port {other_port} "
+						f"(PID {other_pid}). Set singleton=False or stop "
+						f"the existing server first.")
+				# Stale lock — take it over
+				flock.acquire(blocking=True)
 				self._file_lock = flock
 				return
-
-			data = _lookup_port_file(self._port_file)
-			if data is not None:
-				other_port = data.get("port")
-				other_pid = data.get("pid")
-				if other_port and other_pid is not None:
-					alive = _ping_server("127.0.0.1", other_port, timeout=2.0)
-					if alive:
-						my_pid = os.getpid()
-						if my_pid < other_pid:
-							_log(f"PID election: {my_pid} < {other_pid}, taking over")
-							_send_shutdown("127.0.0.1", other_port, timeout=2.0)
-						else:
-							_log(f"PID election: {my_pid} > {other_pid}, not taking over")
-							raise ExifToolServerError(
-								f"Server already running (PID {other_pid}, port {other_port}). "
-								f"Set singleton=False or kill the existing server.")
-
-			# Server dead or port file missing — brief wait then retry
-			time.sleep(0.2)
 
 		raise ExifToolServerError(
 			f"Could not acquire singleton lock: {lock_path}")
@@ -393,8 +386,8 @@ class ExifToolServer:
 		until the socket is ready.
 
 		If *singleton* was set to True in the constructor, this method
-		first attempts to acquire a cross-platform file lock.  See the
-		class docstring for PID-election details.
+		first attempts to acquire a cross-platform file lock (first-come,
+		first-served).  See the class docstring for details.
 
 		Returns the port number the server is listening on.
 		"""

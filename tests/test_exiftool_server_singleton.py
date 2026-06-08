@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tests for ExifToolServer singleton lock and PID election.
+Tests for ExifToolServer singleton lock (first-come, first-served).
 """
 
 import json
@@ -13,6 +13,43 @@ import unittest
 
 import exiftool
 from exiftool.exceptions import ExifToolServerError
+
+
+def _ping(host: str, port: int, timeout: float = 5.0) -> bool:
+	"""Check if a server is alive."""
+	try:
+		s = socket.create_connection((host, port), timeout=timeout)
+		req = json.dumps({"id": 1, "method": "ping", "params": {}}) + "\n"
+		s.sendall(req.encode())
+		resp = s.makefile("r", encoding="utf-8").readline()
+		s.close()
+		return resp is not None and '"pong"' in resp
+	except (OSError, socket.timeout, ConnectionError):
+		return False
+
+
+def _shutdown(host: str, port: int, timeout: float = 5.0):
+	"""Shut down a server via RPC."""
+	try:
+		s = socket.create_connection((host, port), timeout=timeout)
+		req = json.dumps({"id": 1, "method": "shutdown", "params": {}}) + "\n"
+		s.sendall(req.encode())
+		s.close()
+	except (OSError, socket.timeout, ConnectionError):
+		pass
+
+
+def _wait_for_port_closed(host: str, port: int, timeout: float = 5.0) -> bool:
+	"""Wait until a port is no longer listening."""
+	deadline = time.monotonic() + timeout
+	while time.monotonic() < deadline:
+		try:
+			with socket.create_connection((host, port), timeout=0.5):
+				pass
+		except (OSError, socket.timeout, ConnectionError):
+			return True
+		time.sleep(0.05)
+	return False
 
 
 @unittest.skipIf(
@@ -32,7 +69,6 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				os.unlink(p)
 			except OSError:
 				pass
-		cls._own_pid = os.getpid()
 
 	@classmethod
 	def tearDownClass(cls):
@@ -65,20 +101,16 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		self.assertEqual(p1, p2)
 
 	def test_singleton_second_fails(self):
-		"""A second server with a higher PID must raise when the lock is held."""
+		"""A second server must raise when the lock is held by a live server."""
 		self.server.start()
-		import unittest.mock as mock
-		real_pid = os.getpid()
-		fake_higher_pid = real_pid + 1000000
-		with mock.patch("exiftool.server.os.getpid", return_value=fake_higher_pid):
-			server2 = exiftool.ExifToolServer(
-				port_file=self.port_file,
-				singleton=True,
-				no_exiftool=True,
-			)
-			with self.assertRaises(ExifToolServerError) as cm:
-				server2.start()
-			self.assertIn("already running", str(cm.exception).lower())
+		server2 = exiftool.ExifToolServer(
+			port_file=self.port_file,
+			singleton=True,
+			no_exiftool=True,
+		)
+		with self.assertRaises(ExifToolServerError) as cm:
+			server2.start()
+		self.assertIn("already running", str(cm.exception).lower())
 
 	def test_singleton_lock_cleaned_up(self):
 		"""After stop() the lock file must be released (re-acquirable)."""
@@ -95,67 +127,31 @@ class TestExifToolServerSingleton(unittest.TestCase):
 		finally:
 			server2.stop()
 
-	def test_pid_takeover(self):
-		"""A server with a lower PID takes over from a higher-PID server."""
-		import subprocess
-
-		sub_code = (
-			"import sys; sys.path.insert(0, %r); import exiftool;"
-			"srv = exiftool.ExifToolServer("
-			"port_file=%r, singleton=True, no_exiftool=True,"
-			"idle_timeout=30); "
-			"srv.start()\n"
-			"while srv.running:\n"
-			"    import time; time.sleep(0.5)"
-		) % (
-			os.path.join(os.path.dirname(__file__), ".."),
-			self.port_file,
-		)
-		proc = subprocess.Popen(
-			[sys.executable, "-c", sub_code],
-			stdout=subprocess.DEVNULL,
-			stderr=subprocess.DEVNULL,
+	def test_stale_lock_takeover(self):
+		"""A crashed/exited server leaves a stale lock that a new server takes over."""
+		self.server.start()
+		self.server.stop()
+		# Lock file may still exist but flock is released
+		new_server = exiftool.ExifToolServer(
+			port_file=self.port_file,
+			singleton=True,
+			no_exiftool=True,
 		)
 		try:
-			deadline = time.monotonic() + 10.0
-			while time.monotonic() < deadline:
-				try:
-					with open(self.port_file) as f:
-						data = json.load(f)
-					port = data["port"]
-					with socket.create_connection(
-						("127.0.0.1", port), timeout=1.0) as s:
-						s.sendall(json.dumps(
-							{"id": 1, "method": "ping",
-							 "params": {}}).encode() + b"\n")
-						resp = s.makefile("r", encoding="utf-8").readline()
-					if resp and '"pong"' in resp:
-						break
-				except (OSError, KeyError, socket.timeout, ConnectionError):
-					pass
-				time.sleep(0.05)
-			self.assertIsNone(proc.poll(), "subprocess server died prematurely")
-
-			takeover = exiftool.ExifToolServer(
-				port_file=self.port_file,
-				singleton=True,
-				no_exiftool=True,
-			)
-			try:
-				port = takeover.start()
-				self.assertGreater(port, 0)
-				proc.wait(timeout=10.0)
-			except subprocess.TimeoutExpired:
-				self.fail("subprocess should have been terminated by takeover")
-			finally:
-				takeover.stop()
+			port = new_server.start()
+			self.assertGreater(port, 0)
+			# Verify it's the new server responding
+			s = socket.create_connection(("127.0.0.1", port), timeout=5)
+			req = json.dumps({"id": 1, "method": "ping", "params": {}}) + "\n"
+			s.sendall(req.encode())
+			resp = s.makefile("r", encoding="utf-8").readline()
+			s.close()
+			self.assertIn("pong", resp)
 		finally:
-			if proc.poll() is None:
-				proc.terminate()
-				proc.wait()
+			new_server.stop()
 
 	def test_singleton_stress_concurrent(self):
-		"""N concurrent processes with singleton=True: exactly one survives."""
+		"""N concurrent processes with singleton=True: exactly one succeeds."""
 		N = 10
 		root = os.path.join(os.path.dirname(__file__), "..")
 
@@ -177,13 +173,19 @@ class TestExifToolServerSingleton(unittest.TestCase):
 				"    port = srv.start()\n"
 				"    result['status'] = 'running'\n"
 				"    result['port'] = port\n"
-				"    while srv.running:\n"
-				"        import time; time.sleep(0.5)\n"
-				"    result['status'] = 'stopped'\n"
 				"except Exception as e:\n"
 				"    result['status'] = 'failed'\n"
 				"    result['error'] = type(e).__name__\n"
-				"print(json.dumps(result))\n"
+				"# Print immediately — always before the while loop\n"
+				"sys.stdout.write(json.dumps(result) + '\\n')\n"
+				"sys.stdout.flush()\n"
+				"if result['status'] == 'running':\n"
+				"    while srv.running:\n"
+				"        time.sleep(0.2)\n"
+				"    result['status'] = 'stopped'\n"
+				"    # Print final status\n"
+				"    sys.stdout.write(json.dumps(result) + '\\n')\n"
+				"    sys.stdout.flush()\n"
 			) % (delay, root, self.port_file)
 			p = subprocess.Popen(
 				[sys.executable, "-c", sub_code],
@@ -191,71 +193,42 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			)
 			procs.append(p)
 
-		deadline = time.monotonic() + 10.0
-		survivors = []
-		exited_results = []
-		election_lines: list[str] = []
-		expected_winner = min(procs, key=lambda p: p.pid)
+		deadline = time.monotonic() + 15.0
+		read_procs = list(procs)
 
-		for p in procs:
-			if p is expected_winner:
-				continue
-			remaining = deadline - time.monotonic()
-			if remaining <= 0:
-				remaining = 0.001
+		# Read one line from each process (the initial status)
+		results = []
+		for p in read_procs:
 			try:
-				out, err = p.communicate(timeout=remaining)
-				exited_results.append(json.loads(out.decode()))
-				for line in err.decode().splitlines():
-					if "PID election" in line:
-						election_lines.append(line)
+				line = p.stdout.readline()
+				if line:
+					results.append(json.loads(line.decode()))
+			except (OSError, socket.timeout, EOFError,
+			        json.JSONDecodeError):
+				pass
+
+		successes = [r for r in results if r['status'] == 'running']
+		failures = [r for r in results if r['status'] == 'failed']
+		self.assertEqual(len(successes), 1,
+			f"Expected exactly 1 success, got {len(successes)}")
+		self.assertEqual(len(failures), N - 1,
+			f"Expected {N-1} failures, got {len(failures)}")
+
+		# Verify the survivor is still serving
+		port = successes[0]['port']
+		self.assertTrue(_ping("127.0.0.1", port, timeout=5.0),
+			"Survivor should be reachable")
+
+		# Shutdown the survivor
+		_shutdown("127.0.0.1", port)
+		_wait_for_port_closed("127.0.0.1", port)
+
+		# Cleanup survivors
+		for p in procs:
+			try:
+				p.communicate(timeout=3.0)
 			except subprocess.TimeoutExpired:
-				survivors.append((p, p.pid))
-				p.stdout.close()
-				p.stderr.close()
-
-		self.assertEqual(len(survivors), 0,
-			f"Expected no unexpected survivors, got {len(survivors)}")
-		self.assertIsNone(expected_winner.poll(),
-			"Expected lowest-PID process to still be running")
-
-		with open(self.port_file) as f:
-			port_data = json.load(f)
-		port = port_data["port"]
-		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
-			s.sendall(json.dumps(
-				{"id": 1, "method": "ping",
-				 "params": {}}).encode() + b"\n")
-			resp = s.makefile("r", encoding="utf-8").readline()
-		self.assertIn("pong", resp or "")
-
-		# At least one server should have been taken over (status "stopped")
-		taken_over = [r for r in exited_results if r['status'] == 'stopped']
-		self.assertGreater(len(taken_over), 0,
-			f"No takeovers — expected at least one "
-			f"({len(exited_results)} exited)")
-
-		exited_pids = {r['pid'] for r in exited_results}
-		self.assertNotIn(expected_winner.pid, exited_pids,
-			f"Lowest PID {expected_winner.pid} exited prematurely "
-			f"({len(exited_results)} exited)")
-
-		surv_proc = expected_winner
-		with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
-			s.sendall(json.dumps(
-				{"id": 1, "method": "shutdown",
-				 "params": {}}).encode() + b"\n")
-
-		out, err = surv_proc.communicate(timeout=10.0)
-		surv_result = json.loads(out.decode())
-		self.assertEqual(surv_result['status'], 'stopped')
-		for line in err.decode().splitlines():
-			if "PID election" in line:
-				election_lines.append(line)
-
-		if os.environ.get("SHOW_ELECTION_LOGS"):
-			for line in sorted(election_lines):
-				print(f"  {line}")
+				p.kill()
 
 
 if __name__ == '__main__':
