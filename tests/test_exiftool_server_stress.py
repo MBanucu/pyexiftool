@@ -17,7 +17,7 @@ import time
 import unittest
 
 import exiftool
-from exiftool.exceptions import ExifToolServerError, ExifToolConnectionError
+from exiftool.exceptions import ExifToolServerError
 
 from tests.common_util import TEST_IMAGE_JPG
 
@@ -171,14 +171,17 @@ class TestSingletonContention(unittest.TestCase):
         successes = [r for r in results if r['status'] == 'running']
         failures = [r for r in results if r['status'] == 'failed']
 
-        self.assertEqual(len(successes), 1,
+        self.assertEqual(
+            len(successes), 1,
             f"Expected exactly 1 success, got {len(successes)}")
-        self.assertEqual(len(failures), N - 1,
+        self.assertEqual(
+            len(failures), N - 1,
             f"Expected {N-1} failures, got {len(failures)}")
 
         # Verify the survivor is still serving
         port = successes[0]['port']
-        self.assertTrue(_ping("127.0.0.1", port, timeout=5.0),
+        self.assertTrue(
+            _ping("127.0.0.1", port, timeout=5.0),
             "Survivor should be reachable")
 
         # Cleanup survivor
@@ -240,6 +243,7 @@ class TestInFlightRequestDuringShutdown(unittest.TestCase):
 
         # Add a brief delay to _rpc_status to create a race window
         original_status = server._rpc_status
+
         def slow_status():
             time.sleep(0.3)
             return original_status()
@@ -247,6 +251,7 @@ class TestInFlightRequestDuringShutdown(unittest.TestCase):
 
         # Fire a slow status request and immediately send shutdown
         results = []
+
         def request_thread():
             try:
                 results.append(
@@ -262,11 +267,13 @@ class TestInFlightRequestDuringShutdown(unittest.TestCase):
         _shutdown("127.0.0.1", port)
         t.join(timeout=5.0)
 
-        self.assertEqual(len(results), 1,
+        self.assertEqual(
+            len(results), 1,
             "Client should have received exactly one result")
         if isinstance(results[0], Exception):
             self.fail(f"Client got exception instead of response: {results[0]}")
-        self.assertIn("port", results[0],
+        self.assertIn(
+            "port", results[0],
             "Client should receive the status result even though shutdown was sent")
 
     def test_inflight_execute_catches_error_after_subprocess_killed(self):
@@ -285,6 +292,7 @@ class TestInFlightRequestDuringShutdown(unittest.TestCase):
 
         # Fire a get_metadata and kill the subprocess mid-flight
         results = []
+
         def query_thread():
             try:
                 results.append(
@@ -303,7 +311,8 @@ class TestInFlightRequestDuringShutdown(unittest.TestCase):
             server._helper.terminate()
 
         t.join(timeout=10.0)
-        self.assertEqual(len(results), 1,
+        self.assertEqual(
+            len(results), 1,
             "Client should have received exactly one result/error")
         # The client should not hang — it should get either an error response
         # or a socket error.  The key assertion is that it completes.
@@ -358,9 +367,11 @@ class TestConcurrentClients(unittest.TestCase):
             t.join(timeout=30.0)
 
         expected = N_THREADS * N_REQUESTS
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
-        self.assertEqual(results["ok"], expected,
+        self.assertEqual(
+            results["ok"], expected,
             f"Expected {expected} OK, got {results['ok']}")
 
     def test_concurrent_mixed_rpc(self):
@@ -390,7 +401,8 @@ class TestConcurrentClients(unittest.TestCase):
         for t in threads:
             t.join(timeout=30.0)
 
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
         self.assertEqual(results["ok"], N_THREADS * N_REQUESTS)
 
@@ -426,7 +438,8 @@ class TestConcurrentClients(unittest.TestCase):
         for t in threads:
             t.join(timeout=30.0)
 
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
         self.assertEqual(results["ok"], N_CLIENTS)
 
@@ -480,7 +493,8 @@ class TestConnectionStorm(unittest.TestCase):
         for i in range(1000):
             try:
                 result = _rpc("127.0.0.1", self.port, "ping", timeout=5.0)
-                self.assertEqual(result, "pong",
+                self.assertEqual(
+                    result, "pong",
                     f"Iteration {i}: expected pong, got {result}")
             except Exception as e:
                 self.fail(f"Iteration {i} failed: {e}")
@@ -517,7 +531,8 @@ class TestServerThroughput(unittest.TestCase):
             self.assertEqual(result, "pong")
         elapsed = time.monotonic() - start
         rps = N / elapsed
-        self.assertGreaterEqual(rps, 10,
+        self.assertGreaterEqual(
+            rps, 10,
             f"Throughput too low: {rps:.1f} req/s ({elapsed:.2f}s for {N})")
 
     def test_throughput_status(self):
@@ -529,7 +544,8 @@ class TestServerThroughput(unittest.TestCase):
             self.assertIn("port", result)
         elapsed = time.monotonic() - start
         rps = N / elapsed
-        self.assertGreaterEqual(rps, 10,
+        self.assertGreaterEqual(
+            rps, 10,
             f"Throughput too low: {rps:.1f} req/s ({elapsed:.2f}s for {N})")
 
 
@@ -567,9 +583,11 @@ class TestIdleTimeoutUnderLoad(unittest.TestCase):
             iterations += 1
             time.sleep(0.5)
 
-        self.assertGreater(iterations, 10,
+        self.assertGreater(
+            iterations, 10,
             f"Expected at least 10 iterations in 20s, got {iterations}")
-        self.assertTrue(server.running,
+        self.assertTrue(
+            server.running,
             "Server should still be running after sustained load")
 
 
@@ -621,7 +639,8 @@ class TestSpawnServerStress(unittest.TestCase):
         for t in threads:
             t.join(timeout=30.0)
 
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
         self.assertEqual(results["ok"], 50)
 
@@ -683,11 +702,12 @@ class TestSingletonWithExiftoolStress(unittest.TestCase):
         for t in threads:
             t.join(timeout=60.0)
 
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
         self.assertEqual(results["ok"], N_THREADS * N_REQUESTS)
 
-    def test_interleaved_read_write(self):
+    def test_interleaved_read_write(self):  # noqa: C901
         """Interleave get_tags and set_tags on temp copies concurrently."""
         import tempfile as tf
         import shutil
@@ -727,10 +747,10 @@ class TestSingletonWithExiftoolStress(unittest.TestCase):
             for _ in range(3):
                 try:
                     file = copies[tid % len(copies)]
-                    result = _rpc("127.0.0.1", self.port, "set_tags",
-                                  {"files": [file],
-                                   "tags": {"XMP:Description": f"test_{tid}_{_}"}},
-                                  timeout=15.0)
+                    _rpc("127.0.0.1", self.port, "set_tags",
+                         {"files": [file],
+                          "tags": {"XMP:Description": f"test_{tid}_{_}"}},
+                         timeout=15.0)
                     with results_lock:
                         results["ok"] += 1
                 except Exception:
@@ -748,7 +768,8 @@ class TestSingletonWithExiftoolStress(unittest.TestCase):
         for t in threads:
             t.join(timeout=60.0)
 
-        self.assertEqual(results["fail"], 0,
+        self.assertEqual(
+            results["fail"], 0,
             f"Expected 0 failures, got {results['fail']}")
 
 

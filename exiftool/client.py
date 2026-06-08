@@ -44,7 +44,6 @@ Usage::
 import json
 import os
 import socket
-from pathlib import Path
 from typing import Any, Optional, Union
 
 from .constants import (

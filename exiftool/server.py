@@ -47,7 +47,6 @@ Usage::
 import json
 import os
 import socket
-import struct
 import sys
 import threading
 import time
@@ -67,7 +66,6 @@ from .exceptions import (
 	ExifToolOutputEmptyError,
 	ExifToolJSONInvalidError,
 )
-from .exiftool import ExifTool
 from .helper import ExifToolHelper
 
 
@@ -213,6 +211,37 @@ def find_server(port_file: str | None = None, timeout: float = 5.0) -> int | Non
 	return None
 
 
+def _build_server_args(port_file: str, executable: str | None,
+                       common_args: list[str] | None,
+                       singleton: bool) -> list[str]:
+	"""Build the argument list for the server subprocess."""
+	args = [sys.executable, "-m", "exiftool.server", "--port-file", port_file]
+	if executable:
+		args.extend(["--executable", executable])
+	if common_args:
+		for ca in common_args:
+			args.extend(["--common-arg", ca])
+	if singleton:
+		args.append("--singleton")
+	return args
+
+
+def _wait_for_port(port_file: str, timeout: float) -> int:
+	"""Poll the port file until the server is reachable, return port."""
+	deadline = time.monotonic() + timeout
+	while time.monotonic() < deadline:
+		try:
+			data = _read_port_file(port_file)
+			if data and "port" in data:
+				port = data["port"]
+				if _ping_server("127.0.0.1", port, timeout=1.0):
+					return port
+		except (OSError, socket.timeout, ConnectionError):
+			pass
+		time.sleep(0.05)
+	raise TimeoutError
+
+
 def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
                  port_file: str | None = None,
                  executable: str | None = None,
@@ -237,48 +266,29 @@ def spawn_server(timeout: float = DEFAULT_SERVER_TIMEOUT,
 		if existing is not None:
 			return existing
 
-	# Remove stale port file
 	try:
 		os.unlink(port_file)
 	except OSError:
 		pass
 
-	args = [sys.executable, "-m", "exiftool.server", "--port-file", port_file]
-	if executable:
-		args.extend(["--executable", executable])
-	if common_args:
-		for ca in common_args:
-			args.extend(["--common-arg", ca])
-	if singleton:
-		args.append("--singleton")
+	args = _build_server_args(port_file, executable, common_args, singleton)
 
 	proc = subprocess.Popen(
 		args,
 		stdout=subprocess.DEVNULL,
 		stderr=subprocess.DEVNULL,
 	)
-	# Defer ResourceWarning — the server is intentionally left running.
-	# _child_created=False tells Popen.__del__ not to warn.
 	proc._child_created = False
 
-	deadline = time.monotonic() + timeout
-	while time.monotonic() < deadline:
-		try:
-			data = _read_port_file(port_file)
-			if data and "port" in data:
-				port = data["port"]
-				if _ping_server("127.0.0.1", port, timeout=1.0):
-					return port
-		except (OSError, socket.timeout, ConnectionError):
-			pass
-		time.sleep(0.05)
-
 	try:
-		proc.terminate()
-	except OSError:
-		pass
-	raise ExifToolServerError(
-		f"ExifTool server did not start within {timeout}s")
+		return _wait_for_port(port_file, timeout)
+	except TimeoutError:
+		try:
+			proc.terminate()
+		except OSError:
+			pass
+		raise ExifToolServerError(
+			f"ExifTool server did not start within {timeout}s")
 
 
 class ExifToolServer:
@@ -645,29 +655,39 @@ def main():
 	port_file = os.path.join(DEFAULT_SERVER_PORT_FILE_DIR, DEFAULT_SERVER_PORT_FILE)
 
 	parser = argparse.ArgumentParser(description="ExifTool server daemon")
-	parser.add_argument("--host", default=DEFAULT_SERVER_HOST,
-	                    help=f"Interface to bind to (default: {DEFAULT_SERVER_HOST})")
-	parser.add_argument("--port", type=int, default=DEFAULT_SERVER_PORT,
-	                    help=f"Port to bind to (default: {DEFAULT_SERVER_PORT}, 0=random)")
-	parser.add_argument("--idle-timeout", type=float, default=DEFAULT_SERVER_IDLE_TIMEOUT,
-	                    help=f"Idle timeout in seconds (default: {DEFAULT_SERVER_IDLE_TIMEOUT})")
-	parser.add_argument("--port-file", default=port_file,
-	                    help=f"Port discovery file (default: {port_file})")
-	parser.add_argument("--executable",
-	                    help="Path to exiftool executable")
-	parser.add_argument("--common-arg", action="append", default=[],
-	                    help="Common argument passed to every exiftool command")
-	parser.add_argument("--no-exiftool", action="store_true",
-	                    help="Skip starting exiftool (testing only)")
-	parser.add_argument("--singleton", action="store_true",
-	                    help="Enforce a single server per lock file")
-	parser.add_argument("--log", action="store_true",
-	                    help="Enable server logging to stderr")
+	parser.add_argument(
+		"--host", default=DEFAULT_SERVER_HOST,
+		help=f"Interface to bind to (default: {DEFAULT_SERVER_HOST})")
+	parser.add_argument(
+		"--port", type=int, default=DEFAULT_SERVER_PORT,
+		help=f"Port to bind to (default: {DEFAULT_SERVER_PORT}, 0=random)")
+	parser.add_argument(
+		"--idle-timeout", type=float, default=DEFAULT_SERVER_IDLE_TIMEOUT,
+		help=f"Idle timeout in seconds (default: {DEFAULT_SERVER_IDLE_TIMEOUT})")
+	parser.add_argument(
+		"--port-file", default=port_file,
+		help=f"Port discovery file (default: {port_file})")
+	parser.add_argument(
+		"--executable",
+		help="Path to exiftool executable")
+	parser.add_argument(
+		"--common-arg", action="append", default=[],
+		help="Common argument passed to every exiftool command")
+	parser.add_argument(
+		"--no-exiftool", action="store_true",
+		help="Skip starting exiftool (testing only)")
+	parser.add_argument(
+		"--singleton", action="store_true",
+		help="Enforce a single server per lock file")
+	parser.add_argument(
+		"--log", action="store_true",
+		help="Enable server logging to stderr")
 
 	args = parser.parse_args()
 	if not args.log:
 		global _log
-		_log = lambda msg: None
+		def _noop(msg): pass
+		_log = _noop
 
 	server = ExifToolServer(
 		host=args.host,
@@ -683,9 +703,9 @@ def main():
 	try:
 		port = server.start()
 		if args.log:
-			print(f"Server started on {args.host}:{port} (pid={os.getpid()})",
-			      file=sys.stderr)
-		# Keep main thread alive
+			print(
+				f"Server started on {args.host}:{port} (pid={os.getpid()})",
+				file=sys.stderr)
 		while server.running:
 			time.sleep(1)
 	except KeyboardInterrupt:

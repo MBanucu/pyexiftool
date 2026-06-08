@@ -12,7 +12,6 @@ import unittest
 
 import exiftool
 from exiftool.exceptions import ExifToolConnectionError
-from exiftool.constants import PLATFORM_WINDOWS
 
 
 # Path to a known test image

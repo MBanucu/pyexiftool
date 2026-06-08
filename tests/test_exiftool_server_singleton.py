@@ -193,7 +193,6 @@ class TestExifToolServerSingleton(unittest.TestCase):
 			)
 			procs.append(p)
 
-		deadline = time.monotonic() + 15.0
 		read_procs = list(procs)
 
 		# Read one line from each process (the initial status)
@@ -209,14 +208,17 @@ class TestExifToolServerSingleton(unittest.TestCase):
 
 		successes = [r for r in results if r['status'] == 'running']
 		failures = [r for r in results if r['status'] == 'failed']
-		self.assertEqual(len(successes), 1,
+		self.assertEqual(
+			len(successes), 1,
 			f"Expected exactly 1 success, got {len(successes)}")
-		self.assertEqual(len(failures), N - 1,
+		self.assertEqual(
+			len(failures), N - 1,
 			f"Expected {N-1} failures, got {len(failures)}")
 
 		# Verify the survivor is still serving
 		port = successes[0]['port']
-		self.assertTrue(_ping("127.0.0.1", port, timeout=5.0),
+		self.assertTrue(
+			_ping("127.0.0.1", port, timeout=5.0),
 			"Survivor should be reachable")
 
 		# Shutdown the survivor
