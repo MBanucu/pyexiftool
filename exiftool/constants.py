@@ -30,9 +30,9 @@ from pathlib import Path
 import sys
 
 
-##################################
-############# HELPERS ############
-##################################
+# -------------------------------
+# HELPERS
+# -------------------------------
 
 # instead of comparing everywhere sys.platform, do it all here in the constants (less typo chances)
 # True if Windows
@@ -45,10 +45,9 @@ PLATFORM_LINUX: bool = (sys.platform == 'linux' or sys.platform == 'linux2')
 """sys.platform check, set to True if Linux"""
 
 
-
-##################################
-####### PLATFORM DEFAULTS ########
-##################################
+# -------------------------------
+# PLATFORM DEFAULTS
+# -------------------------------
 
 
 # specify the extension so exiftool doesn't default to running "exiftool.py" on windows (which could happen)
@@ -65,15 +64,15 @@ By default, the executable is searched for on one of the paths listed in the
 """
 # flipped the if/else so that the sphinx documentation shows "exiftool" rather than "exiftool.exe"
 if not PLATFORM_WINDOWS:  # pytest-cov:windows: no cover
-	DEFAULT_EXECUTABLE = "exiftool"
+    DEFAULT_EXECUTABLE = "exiftool"
 else:
-	DEFAULT_EXECUTABLE = "exiftool.exe"
+    DEFAULT_EXECUTABLE = "exiftool.exe"
 """
 
 
-##################################
-####### STARTUP CONSTANTS ########
-##################################
+# -------------------------------
+# STARTUP CONSTANTS
+# -------------------------------
 
 # for Windows STARTUPINFO
 SW_FORCEMINIMIZE: int = 11
@@ -90,10 +89,9 @@ Allows a kill signal to be sent to child processes when the parent unexpectedly 
 """
 
 
-
-##################################
-######## GLOBAL DEFAULTS #########
-##################################
+# -------------------------------
+# GLOBAL DEFAULTS
+# -------------------------------
 
 DEFAULT_BLOCK_SIZE: int = 4096
 """The default block size when reading from exiftool.  The standard value
@@ -124,7 +122,7 @@ DEFAULT_SERVER_PORT_FILE: str = "pyexiftool-server.json"
 """Default basename for the server port discovery file"""
 
 DEFAULT_SERVER_PORT_FILE_DIR: str = str(
-	Path.home() / ".cache" / "pyexiftool")
+    Path.home() / ".cache" / "pyexiftool")
 """Default directory for server port discovery and lock files.
 
 Uses ``~/.cache/pyexiftool`` so that all processes for the same user

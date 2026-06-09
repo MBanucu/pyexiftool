@@ -47,14 +47,14 @@ import socket
 from typing import Any, Optional, Union
 
 from .constants import (
-	DEFAULT_SERVER_HOST,
-	DEFAULT_SERVER_PORT_FILE,
-	DEFAULT_SERVER_PORT_FILE_DIR,
-	DEFAULT_SERVER_TIMEOUT,
+    DEFAULT_SERVER_HOST,
+    DEFAULT_SERVER_PORT_FILE,
+    DEFAULT_SERVER_PORT_FILE_DIR,
+    DEFAULT_SERVER_TIMEOUT,
 )
 from .exceptions import (
-	ExifToolConnectionError,
-	ExifToolServerError,
+    ExifToolConnectionError,
+    ExifToolServerError,
 )
 
 
