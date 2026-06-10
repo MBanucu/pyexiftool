@@ -106,8 +106,7 @@ PyExifTool Dependencies
 Python
 ------
 
-PyExifTool runs on **Python 3.6+**.  (If you need Python 2.6 support,
-please use version v0.4.x).  PyExifTool has been tested on Windows and
+PyExifTool runs on **Python 3.10+**.  PyExifTool has been tested on Windows and
 Linux, and probably also runs on other Unix-like platforms.
 
 Phil Harvey's exiftool
