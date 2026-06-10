@@ -810,7 +810,7 @@ class ExifTool(object):
             # Due to the way the code is written, ExifTool only uses stdin.write which would need to be in bytes.
             # The reading is _NOT_ using subprocess.communicate().  This class reads raw bytes using os.read()
             # Therefore, by switching off the encoding= in Popen(), we can support both bytes and str at the
-            # same time.  (This change was to support https://github.com/sylikc/pyexiftool/issues/47)
+            # same time.  (This change was to support https://github.com/MBanucu/pyexiftool/issues/47)
 
             # unify both platform calls into one subprocess.Popen call
             self._process = subprocess.Popen(

@@ -22,7 +22,7 @@ $ ``exiftool -JFIF:all rose.jpg``
 	Y Resolution                    : 72
 
 
-.. _`rose.jpg in tests`: https://github.com/sylikc/pyexiftool/blob/master/tests/files/rose.jpg
+.. _`rose.jpg in tests`: https://github.com/MBanucu/pyexiftool/blob/master/tests/files/rose.jpg
 
 Default PyExifTool output
 -------------------------
@@ -213,7 +213,7 @@ However, as you can see below, it also *changes the behavior of all float fields
 There are other edge cases which may exhibit quirky behavior when storing numbers and whitespace only to text fields (See `test cases related to numeric tags`_).  Since PyExifTool cannot accommodate all possible edge cases,
 this workaround will allow you to configure PyExifTool to work in your environment!
 
-.. _`test cases related to numeric tags`: https://github.com/sylikc/pyexiftool/blob/master/tests/test_helper_tags_float.py
+.. _`test cases related to numeric tags`: https://github.com/MBanucu/pyexiftool/blob/master/tests/test_helper_tags_float.py
 
 
 I would like to use a faster json string parser

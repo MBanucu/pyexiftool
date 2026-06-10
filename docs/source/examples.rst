@@ -7,7 +7,7 @@ Examples / Quick Start
 
 Try it yourself: All of these examples are using the images provided in the `tests directory`_ in the source
 
-.. _`tests directory`: https://github.com/sylikc/pyexiftool/tree/master/tests/images
+.. _`tests directory`: https://github.com/MBanucu/pyexiftool/tree/master/tests/images
 
 
 

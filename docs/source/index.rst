@@ -21,7 +21,7 @@ PyExifTool -- Python wrapper for Phil Harvey's ExifTool
 	reference/*
 	FAQ <faq>
 	autoapi/*
-	Source code on GitHub <https://github.com/sylikc/pyexiftool>
+	Source code on GitHub <https://github.com/MBanucu/pyexiftool>
 
 
 ..   maintenance/*

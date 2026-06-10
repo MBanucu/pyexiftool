@@ -258,7 +258,7 @@ class ExifToolHelper(ExifTool):
         :type: bool
 
 
-        .. _file an issue: https://github.com/sylikc/pyexiftool/issues
+        .. _file an issue: https://github.com/MBanucu/pyexiftool/issues
         .. _ExifTool Tag Names: https://exiftool.org/TagNames/
         """
         return self._check_tag_names
@@ -476,7 +476,7 @@ class ExifToolHelper(ExifTool):
                 exec_params.append(params)
 
         for tag, value in tags.items():
-            # contributed by @daviddorme in https://github.com/sylikc/pyexiftool/issues/12#issuecomment-821879234
+            # contributed by @daviddorme in https://github.com/MBanucu/pyexiftool/issues/12#issuecomment-821879234
             # allows setting things like Keywords which require separate directives
             # > exiftool -Keywords=keyword1 -Keywords=keyword2 -Keywords=keyword3 file.jpg
             # which are not supported as duplicate keys in a dictionary
