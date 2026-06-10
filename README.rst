@@ -19,10 +19,6 @@ PyExifTool
 	:target: https://pypi.org/project/mbanucu-pyexiftool/
 	:alt: PyPI Version
 
-.. image:: https://static.pepy.tech/personalized-badge/mbanucu-pyexiftool?period=month&units=international_system&left_color=black&right_color=orange&left_text=Downloads%2030d
-	:target: https://pepy.tech/project/mbanucu-pyexiftool
-	:alt: PyPI Downloads this month
-
 
 
 .. DESCRIPTION_START
