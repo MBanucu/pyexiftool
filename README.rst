@@ -88,13 +88,13 @@ Getting PyExifTool
 PyPI
 ------------
 
-Easiest: Install a version from the official `PyExifTool PyPI`_
+Easiest: Install a version from `gopro-pyexiftool on PyPI`_
 
 ::
 
-    python -m pip install -U pyexiftool
+    python -m pip install -U gopro-pyexiftool
 
-.. _PyExifTool PyPI: https://pypi.org/project/PyExifTool/
+.. _gopro-pyexiftool on PyPI: https://pypi.org/project/gopro-pyexiftool/
 
 
 From Source
@@ -102,7 +102,7 @@ From Source
 
 #. Check out the source code from the github repository
 
-	* ``git clone git://github.com/sylikc/pyexiftool.git``
+	* ``git clone https://github.com/MBanucu/pyexiftool.git``
 	* Alternatively, you can download a tarball_.
 
 #. Run setup.py to install the module from source
@@ -110,7 +110,7 @@ From Source
 	* ``python setup.py install [--user|--prefix=<installation-prefix>]``
 
 
-.. _tarball: https://github.com/sylikc/pyexiftool/tarball/master
+.. _tarball: https://github.com/MBanucu/pyexiftool/tarball/master
 
 
 PyExifTool Dependencies
@@ -278,7 +278,7 @@ in the temp directory) is also supported::
     port = exiftool.spawn_server()
     print(f"Server on port {port}")
 
-Discovered server port from a running server:
+Discovered server port from a running server::
 
     port = exiftool.find_server()
     if port:
