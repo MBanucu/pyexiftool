@@ -15,7 +15,7 @@ PyExifTool
 	:target: https://pypi.org/project/mbanucu-pyexiftool/
 	:alt: PyPI Version
 
-.. image:: https://img.shields.io/pypi/pyversions/mbanucu-pyexiftool.svg
+.. image:: https://img.shields.io/pypi/pyversions/mbanucu-pyexiftool.svg?cache_buster=1
 	:target: https://pypi.org/project/mbanucu-pyexiftool/
 	:alt: Supported Python Versions
 
