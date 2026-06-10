@@ -50,29 +50,27 @@ setup(
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/
 
     # overview
-    name="PyExifTool",
+    name="gopro-pyexiftool",
     # version is configured in setup.cfg - https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
     # version=,
     license="GPLv3+/BSD",
-    url="http://github.com/sylikc/pyexiftool",
+    url="https://github.com/MBanucu/pyexiftool",
     python_requires=">=3.6",
 
     # authors
-    author="Kevin M (sylikc), Sven Marnach, various contributors",
-    author_email="sylikc@gmail.com",
+    author="MBanucu",
+    author_email="",
 
     # info
-    description="Python wrapper for exiftool",
+    description="PyExifTool fork with server/client support, packaged for gopro-timestamp-sdk",
     long_description=get_long_desc(),
     long_description_content_type="text/x-rst",
     keywords="exiftool image exif metadata photo video photography",
 
     project_urls={
         # this seems to get populated in PyPI in reverse order
-        "Source": "https://github.com/sylikc/pyexiftool",
-        "Tracker": "https://github.com/sylikc/pyexiftool/issues",
-        "Changelog": "https://github.com/sylikc/pyexiftool/blob/master/CHANGELOG.md",
-        "Documentation": "https://sylikc.github.io/pyexiftool/",
+        "Source": "https://github.com/MBanucu/pyexiftool",
+        "Tracker": "https://github.com/MBanucu/pyexiftool/issues",
     },
 
 
