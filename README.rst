@@ -15,16 +15,12 @@ PyExifTool
 
 .. HIDE_FROM_PYPI_END
 
-.. image:: https://img.shields.io/pypi/pyversions/pyexiftool.svg
-	:target: https://pypi.org/project/PyExifTool/
-	:alt: Supported Python Versions
+.. image:: https://img.shields.io/pypi/v/mbanucu-pyexiftool.svg
+	:target: https://pypi.org/project/mbanucu-pyexiftool/
+	:alt: PyPI Version
 
-.. image:: https://pepy.tech/badge/pyexiftool
-	:target: https://pepy.tech/project/pyexiftool
-	:alt: Total PyPI Downloads
-
-.. image:: https://static.pepy.tech/personalized-badge/pyexiftool?period=month&units=international_system&left_color=black&right_color=orange&left_text=Downloads%2030d
-	:target: https://pepy.tech/project/pyexiftool
+.. image:: https://static.pepy.tech/personalized-badge/mbanucu-pyexiftool?period=month&units=international_system&left_color=black&right_color=orange&left_text=Downloads%2030d
+	:target: https://pepy.tech/project/mbanucu-pyexiftool
 	:alt: PyPI Downloads this month
 
 
