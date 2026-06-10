@@ -9,15 +9,13 @@ from pathlib import Path
 import shutil
 
 # pip
-#from packaging import version
+# from packaging import version
 
 # test helpers
 from tests.common_util import et_get_temp_dir, TEST_IMAGE_DIR
 
 # custom
 import exiftool
-
-
 
 
 class TestAlphaTagCopying(unittest.TestCase):
@@ -73,10 +71,8 @@ class TestAlphaSetKeywords(unittest.TestCase):
             encoding="UTF-8"
         )
 
-
     def tearDown(self):
         self.et.terminate()
-
 
     def test_set_keywords(self):
         (temp_obj, temp_dir) = et_get_temp_dir(suffix="setkw")
@@ -114,8 +110,6 @@ class TestAlphaSetKeywords(unittest.TestCase):
             self.assertEqual(kwtag0, d["Keywords"])
             self.assertEqual(kwtag1, d["Keywords"][0])
             self.assertEqual(kwtag2, [d["Keywords"][0]] + kw_to_add)
-
-
 
 
 if __name__ == "__main__":

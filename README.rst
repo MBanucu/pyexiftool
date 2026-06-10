@@ -88,13 +88,13 @@ Getting PyExifTool
 PyPI
 ------------
 
-Easiest: Install a version from the official `PyExifTool PyPI`_
+Easiest: Install a version from `mbanucu-pyexiftool on PyPI`_
 
 ::
 
-    python -m pip install -U pyexiftool
+    python -m pip install -U mbanucu-pyexiftool
 
-.. _PyExifTool PyPI: https://pypi.org/project/PyExifTool/
+.. _mbanucu-pyexiftool on PyPI: https://pypi.org/project/mbanucu-pyexiftool/
 
 
 From Source
@@ -102,7 +102,7 @@ From Source
 
 #. Check out the source code from the github repository
 
-	* ``git clone git://github.com/sylikc/pyexiftool.git``
+	* ``git clone https://github.com/MBanucu/pyexiftool.git``
 	* Alternatively, you can download a tarball_.
 
 #. Run setup.py to install the module from source
@@ -110,7 +110,7 @@ From Source
 	* ``python setup.py install [--user|--prefix=<installation-prefix>]``
 
 
-.. _tarball: https://github.com/sylikc/pyexiftool/tarball/master
+.. _tarball: https://github.com/MBanucu/pyexiftool/tarball/master
 
 
 PyExifTool Dependencies
@@ -228,6 +228,61 @@ The base ``ExifTool`` class contains the core functionality exposed in the most 
 
 
 .. DESIGN_CLASS_END
+
+
+Server / Client Mode
+--------------------
+
+PyExifTool provides a TCP server mode that allows multiple processes or
+threads to share a single ``exiftool`` subprocess.  This avoids the
+overhead of starting a new subprocess per client and is essential when
+multiple processes must not concurrently write to the same filesystem.
+
+The server listens on a TCP socket and accepts JSON-RPC-like requests.
+The client provides the same API as ``exiftool.ExifToolHelper``,
+making it a drop-in replacement.
+
+* ``exiftool.ExifToolServer`` wraps an ``ExifToolHelper`` instance and
+  exposes it over TCP.  It auto-shuts down after an idle timeout.
+
+* ``exiftool.ExifToolClient`` connects to a running server and proxies
+  all calls to it.
+
+Example::
+
+    import exiftool
+
+    # Start a server
+    server = exiftool.ExifToolServer()
+    port = server.start()
+
+    # Connect a client from another process (or the same one)
+    with exiftool.ExifToolClient(port=port) as client:
+        metadata = client.get_metadata("file.jpg")
+
+    # Servers auto-shutdown after 60s idle; stop explicitly:
+    server.stop()
+
+Auto-discovery via a well-known port file (``pyexiftool-server.json``
+in the temp directory) is also supported::
+
+    # Process A: start server (uses default port file)
+    server = exiftool.ExifToolServer()
+    server.start()
+
+    # Process B: auto-discover
+    client = exiftool.ExifToolClient()
+    print(client.execute("-ver"))
+
+    # Or spawn a server as a background subprocess:
+    port = exiftool.spawn_server()
+    print(f"Server on port {port}")
+
+Discovered server port from a running server::
+
+    port = exiftool.find_server()
+    if port:
+        print(f"Found server on port {port}")
 
 
 Brief History

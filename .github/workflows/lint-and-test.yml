@@ -5,28 +5,23 @@ on: [push, pull_request]
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, '3.10', 3.11, 3.12]
+        python-version: ['3.10', 3.11, 3.12, 3.13]
 
     env:
       exiftool_version: 12.15
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6.0.3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
-        # while https://github.com/actions/setup-python recommends using a specific dependency version to use cache
-        # we'll see if this just uses it in default configuration
-        # this can't be enabled unless a requirements.txt file exists.  PyExifTool doesn't have any hard requirements
-        #cache: 'pip'
     - name: Cache Perl ExifTool Download
-      # https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows
-      uses: actions/cache@v2
+      uses: actions/cache@v5.0.5
       env:
         cache-name: cache-perl-exiftool
       with:
