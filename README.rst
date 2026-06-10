@@ -239,7 +239,7 @@ overhead of starting a new subprocess per client and is essential when
 multiple processes must not concurrently write to the same filesystem.
 
 The server listens on a TCP socket and accepts JSON-RPC-like requests.
-The client provides the same API as :py:class:`exiftool.ExifToolHelper`,
+The client provides the same API as ``exiftool.ExifToolHelper``,
 making it a drop-in replacement.
 
 * ``exiftool.ExifToolServer`` wraps an ``ExifToolHelper`` instance and
