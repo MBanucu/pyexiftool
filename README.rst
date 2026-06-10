@@ -2,10 +2,6 @@
 PyExifTool
 **********
 
-.. image:: https://img.shields.io/badge/Docs-latest-blueviolet
-	:alt: GitHub Pages
-
-
 .. HIDE_FROM_PYPI_START
 
 .. image:: https://github.com/MBanucu/pyexiftool/actions/workflows/lint-and-test.yml/badge.svg
