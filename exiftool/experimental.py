@@ -2,7 +2,7 @@
 #
 # This file is part of PyExifTool.
 #
-# PyExifTool <http://github.com/sylikc/pyexiftool>
+# PyExifTool <https://github.com/MBanucu/pyexiftool>
 #
 # Copyright 2019-2023 Kevin M (sylikc)
 # Copyright 2012-2014 Sven Marnach

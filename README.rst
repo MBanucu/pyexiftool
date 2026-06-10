@@ -4,18 +4,13 @@ PyExifTool
 
 .. image:: https://img.shields.io/badge/Docs-latest-blueviolet
 	:alt: GitHub Pages
-	:target: http://sylikc.github.io/pyexiftool/
 
 
 .. HIDE_FROM_PYPI_START
 
-.. image:: https://github.com/sylikc/pyexiftool/actions/workflows/lint-and-test.yml/badge.svg
+.. image:: https://github.com/MBanucu/pyexiftool/actions/workflows/lint-and-test.yml/badge.svg
 	:alt: GitHub Actions
-	:target: https://github.com/sylikc/pyexiftool/actions
-
-.. image:: https://img.shields.io/pypi/v/pyexiftool.svg
-	:target: https://pypi.org/project/PyExifTool/
-	:alt: PyPI Version
+	:target: https://github.com/MBanucu/pyexiftool/actions
 
 
 .. HIDE_FROM_PYPI_END
@@ -176,13 +171,14 @@ will have to `build from source`_.
 Documentation
 =============
 
-The current documentation is available at `sylikc.github.io`_.
+The current documentation is available at `sylikc.github.io`_ or `MBanucu on GitHub`_.
 
 ::
 
     http://sylikc.github.io/pyexiftool/
 
 .. _sylikc.github.io: http://sylikc.github.io/pyexiftool/
+.. _MBanucu on GitHub: https://github.com/MBanucu/pyexiftool
 
 
 Package Structure
@@ -224,7 +220,7 @@ The base ``ExifTool`` class contains the core functionality exposed in the most 
   * If you are using any of these methods in your project, please `Submit an Issue`_ to start a discussion on making those functions more robust, and making their way into ``ExifToolHelper``.
     (Think of ``ExifToolAlpha`` as ideas on how to extend ``ExifTool``, where new functionality which may one day make it into the ``ExifToolHelper`` class.)
 
-.. _Submit an Issue: https://github.com/sylikc/pyexiftool/issues
+.. _Submit an Issue: https://github.com/MBanucu/pyexiftool/issues
 
 
 .. DESIGN_CLASS_END

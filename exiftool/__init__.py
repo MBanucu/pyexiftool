@@ -2,7 +2,7 @@
 #
 # This file is part of PyExifTool.
 #
-# PyExifTool <http://github.com/sylikc/pyexiftool>
+# PyExifTool <https://github.com/MBanucu/pyexiftool>
 #
 # Copyright 2019-2023 Kevin M (sylikc)
 # Copyright 2012-2014 Sven Marnach
@@ -37,12 +37,12 @@ The source code can be checked out from the github repository with
 
 ::
 
-    git clone git://github.com/sylikc/pyexiftool.git
+    git clone https://github.com/MBanucu/pyexiftool.git
 
 Alternatively, you can download a tarball_.  There haven't been any
 releases yet.
 
-.. _tarball: https://github.com/sylikc/pyexiftool/tarball/master
+.. _tarball: https://github.com/MBanucu/pyexiftool/tarball/master
 
 PyExifTool is licenced under GNU GPL version 3 or later, or BSD license.
 
