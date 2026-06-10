@@ -50,7 +50,7 @@ setup(
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/
 
     # overview
-    name="gopro-pyexiftool",
+    name="mbanucu-pyexiftool",
     # version is configured in setup.cfg - https://packaging.python.org/en/latest/guides/single-sourcing-package-version/
     # version=,
     license="GPLv3+/BSD",
@@ -62,7 +62,7 @@ setup(
     author_email="",
 
     # info
-    description="PyExifTool fork with server/client support, packaged for gopro-timestamp-sdk",
+    description="PyExifTool fork with server/client support",
     long_description=get_long_desc(),
     long_description_content_type="text/x-rst",
     keywords="exiftool image exif metadata photo video photography",

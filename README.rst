@@ -88,13 +88,13 @@ Getting PyExifTool
 PyPI
 ------------
 
-Easiest: Install a version from `gopro-pyexiftool on PyPI`_
+Easiest: Install a version from `mbanucu-pyexiftool on PyPI`_
 
 ::
 
-    python -m pip install -U gopro-pyexiftool
+    python -m pip install -U mbanucu-pyexiftool
 
-.. _gopro-pyexiftool on PyPI: https://pypi.org/project/gopro-pyexiftool/
+.. _mbanucu-pyexiftool on PyPI: https://pypi.org/project/mbanucu-pyexiftool/
 
 
 From Source
