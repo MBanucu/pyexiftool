@@ -46,14 +46,14 @@ Upload to Test PyPI
 Set up the ``$HOME/.pypirc`` (Linux) or ``%UserProfile%\.pypirc`` (Windows)
 
 #. ``python -m twine upload --repository testpypi dist/*``
-#. Check package uploaded properly: `TestPyPI PyExifTool`_
+#. Check package uploaded properly: `TestPyPI mbanucu-pyexiftool`_
 #. Create a temporary venv to test PyPI and run tests
 
 	#. ``python -m venv tmp``
 	#. Activate venv
-	#. ``python -m pip install -U -i https://test.pypi.org/simple/ PyExifTool``
+	#. ``python -m pip install -U mbanucu-pyexiftool``
 
-		* If there is an error with SSL verification, just trust it: ``python -m pip install --trusted-host test-files.pythonhosted.org -U -i https://test.pypi.org/simple/ PyExifTool``
+		* If there is an error with SSL verification, just trust it: ``python -m pip install -U mbanucu-pyexiftool``
 		* If you want to test a specific version, can specify as ``PyExifTool==<version>``, otherwise it installs the latest by default
 
 	#. Make sure exiftool is found on PATH
@@ -64,7 +64,7 @@ Set up the ``$HOME/.pypirc`` (Linux) or ``%UserProfile%\.pypirc`` (Windows)
 #. Cleanup: ``python -m pip uninstall PyExifTool``, then delete temp venv
 
 
-.. _`TestPyPI PyExifTool`: https://test.pypi.org/project/PyExifTool/#history
+.. _`TestPyPI mbanucu-pyexiftool`: https://test.pypi.org/project/mbanucu-pyexiftool/#history
 
 Release
 =======
