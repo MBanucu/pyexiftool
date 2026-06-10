@@ -3,7 +3,7 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - 'gopro-pyexiftool-v*'
+      - 'mbanucu-pyexiftool-v*'
 
 jobs:
   deploy:
